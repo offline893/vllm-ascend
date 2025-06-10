@@ -807,7 +807,7 @@ class AscendW8A8DynamicFusedMoEMethod:
                 shared_experts=shared_experts,
                 is_torchair=self.torchair_graph_enabled,
                 quantized_x_for_share=shared_gate_up,
-                dynamic_scale_for_share=shared_dequant_scale)
+                dynamic_scale_for_share=shared_dequant_scale), topk_ids
         elif fused_moe_state == FusedMoEState.AllGather:
             return fused_experts(hidden_states=x,
                                  w1=layer.w13_weight,
@@ -817,7 +817,7 @@ class AscendW8A8DynamicFusedMoEMethod:
                                  topk_weights=topk_weights,
                                  topk_ids=topk_ids,
                                  top_k=top_k,
-                                 expert_map=expert_map)
+                                 expert_map=expert_map), topk_ids
         else:
             # The current implementation of deepseek moe splits hidden_states
             # according to tp_size before they are feed into fused_moe module.
@@ -836,7 +836,7 @@ class AscendW8A8DynamicFusedMoEMethod:
                 ep_group=self.ep_group,
                 log2phy=log2phy,
                 global_redundant_expert_num=global_redundant_expert_num,
-            )
+            ), topk_ids
 
     def process_weights_after_loading(self, layer):
         if self.transpose_weight:

@@ -1021,6 +1021,8 @@ class AscendFusedMoE(FusedMoE):
 
         AscendFusedMoE.moe_counter += 1
         self.moe_instance_id = AscendFusedMoE.moe_counter
+        self.moe_load = None
+        self.topk_ids =  None
 
         if params_dtype is None:
             params_dtype = torch.get_default_dtype()
@@ -1187,7 +1189,7 @@ class AscendFusedMoE(FusedMoE):
             router_logits = get_dp_group().all_gather(router_logits, 0)
 
         # Matrix multiply.
-        e_hidden_states = self.quant_method.apply(
+        e_hidden_states, self.topk_ids = self.quant_method.apply(
             layer=self,
             x=hidden_states,
             router_logits=router_logits,
@@ -1210,6 +1212,8 @@ class AscendFusedMoE(FusedMoE):
             quantized_x_for_share=quantized_x_for_share,
             dynamic_scale_for_share=dynamic_scale_for_share,
         )
+
+        self.calculate_moe_load()
 
         if shared_experts:
             if isinstance(e_hidden_states, tuple):
@@ -1270,3 +1274,25 @@ class AscendFusedMoE(FusedMoE):
             enable_force_load_balance=enable_force_load_balance)
 
         return hidden_states
+
+    def update_map(self,new_expert_map):
+        self.expert_map = new_expert_map
+
+    def get_map(self):
+        return self.expert_map
+
+    def get_moe_load(self):
+        return self.moe_load
+
+    def calculate_moe_load(self):
+        if self.moe_load is None:
+            self.moe_load = torch.zeros(self.num_experts,
+                                        dtype=torch.int64,
+                                        device=self.topk_ids.device)
+
+        ids     = self.topk_ids.flatten().to(torch.int64)
+
+        ones = torch.ones_like(ids, dtype=torch.int64, device=ids.device)
+        self.moe_load.scatter_add_(0, ids, ones)
+
+        return self.moe_load

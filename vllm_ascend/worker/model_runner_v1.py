@@ -87,6 +87,10 @@ from vllm_ascend.sample.rejection_sampler import AscendRejectionSampler
 from vllm_ascend.utils import ProfileExecuteDuration
 from vllm_ascend.worker.mtp_proposer_v1 import MtpProposer
 
+from vllm_ascend.eplb.eplb_updator import EplbUpdator
+from vllm_ascend.eplb.adaptor.vllm_adaptor import VllmEplbAdaptor
+from vllm_ascend.eplb.core.loader.device_transfer_loader import D2DExpertWeightLoader
+
 if TYPE_CHECKING:
     import xgrammar as xgr  # type: ignore[import-untyped]
     from vllm.v1.core.sched.output import SchedulerOutput
@@ -387,6 +391,20 @@ class NPUModelRunner(LoRAModelRunnerMixin):
 
         self.dp_size = vllm_config.parallel_config.data_parallel_size
         self.dp_rank = vllm_config.parallel_config.data_parallel_rank
+
+        #EPLB
+        self.enable_eplb = True
+        # if additional_config:
+        #     self.enable_torchair_graph_mode = additional_config.get(
+        #         "enable_graph_mode",
+        #         False) and self.vllm_config.model_config.use_mla
+        #     self.use_cached_npu_graph = additional_config.get(
+        #         "use_cached_npu_graph", False)
+        #     self.enable_eplb = additional_config.get("enable_eplb", False)
+
+        if self.enable_eplb == True:
+            self.eplb_adaptor = None
+            self.eplb_updator = EplbUpdator()
 
         # NOTE: we need to use `in_profile_run` to determine whether `enable_force_load_balance` is True
         self.in_profile_run = False
@@ -1308,6 +1326,13 @@ class NPUModelRunner(LoRAModelRunnerMixin):
         scheduler_output: "SchedulerOutput",
         intermediate_tensors: Optional[IntermediateTensors] = None,
     ) -> Union[ModelRunnerOutput, torch.Tensor]:
+
+        if self.enable_eplb:
+            if self.eplb_adaptor == None:
+                self.eplb_adaptor = VllmEplbAdaptor(model=self.model)
+                self.eplb_updator.set_adaptor(self.eplb_adaptor)
+            self.eplb_updator.forward_before()
+
         with ProfileExecuteDuration().capture_async(
                 "prepare input and forward"):
             self._update_states(scheduler_output)
@@ -1436,6 +1461,9 @@ class NPUModelRunner(LoRAModelRunnerMixin):
             captured_name = "Decode" if self.attn_state == AscendAttentionState.DecodeOnly else "Prefill"
             logger.info("Profile execute duration [%s]:%s", captured_name,
                         " ".join(dr_str))
+
+        if self.enable_eplb:
+            self.eplb_updator.forward_end()
 
         return model_runner_output
 
