@@ -36,8 +36,7 @@ class VllmEplbAdaptor(EplbAdaptor):
 
         self.buffer_tensor_dict = dict()
         num_buffer_tensor = 100 # TO DO: provide number of buffer tensor by vllm configuration
-        params_dtype = torch.int8 # TO DO: provide number of buffer tensor by vllm configuration
-        self.init_buffer_tensor_dict(num_buffer_tensor, params_dtype)
+        self.init_buffer_tensor_dict(num_buffer_tensor)
 
         self.expert_map_per_layer = dict()
         for layer_idx in range(self.num_moe_layers):
