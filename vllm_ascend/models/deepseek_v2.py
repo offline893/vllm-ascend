@@ -733,9 +733,12 @@ class CustomDeepseekV2ForCausalLM(DeepseekV2ForCausalLM):
         quant_config = vllm_config.quant_config
         self.config = config
         self.quant_config = quant_config
+        self.num_dense_layers = self.config.first_k_dense_replace
+        self.num_moe_layers = self.config.num_hidden_layers - self.num_dense_layers
         self.model = CustomDeepseekV2Model(vllm_config=vllm_config,
-                                           prefix=maybe_prefix(
+                                   prefix=maybe_prefix(
                                                prefix, "model"))
+
         if get_pp_group().is_last_rank:
             self.lm_head = ParallelLMHead(config.vocab_size,
                                           config.hidden_size,
