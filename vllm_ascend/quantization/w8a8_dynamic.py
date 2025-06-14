@@ -216,7 +216,7 @@ def fused_experts_with_mc2(
     quantized_x_for_share: Optional[Any] = None,
     dynamic_scale_for_share: Optional[Any] = None,
 ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
-    if log2phy:
+    if log2phy is not None:
         topk_ids = log2phy[topk_ids]
     quant_mode = 2
     ep_group = get_ep_group()
