@@ -41,6 +41,7 @@ class EplbUpdator:
         self.update_in_flight = False
 
         self.reqs = []
+        self.update_info_all = []
 
         self.cur_iterations: torch.int64 = 0
 
@@ -88,8 +89,12 @@ class EplbUpdator:
     def forward_before(self):
         self.get_init_expert_map()
 
+        # Batch after eplb process being triggered, get update info provided by eplb process
+        if self.update_in_flight and self.weight_update_counter == 0:
+            self.update_info_all = self.block_update_queue.get()
+
         if self.update_in_flight and self.weight_update_counter < self.num_moe_layers:
-            (expert_send_info, expert_recv_info, updated_expert_map, layer_id) = self.block_update_queue.get()
+            (expert_send_info, expert_recv_info, updated_expert_map, layer_id) = self.update_info_all.pop(0)
             rank_id = torch.distributed.get_rank()
             expert_send_info_this_rank = expert_send_info[rank_id] if rank_id in expert_send_info else []
             expert_recv_info_this_rank = expert_recv_info[rank_id] if rank_id in expert_recv_info else []
@@ -100,6 +105,7 @@ class EplbUpdator:
             if self.weight_update_counter == self.num_moe_layers:
                 self.weight_update_counter = 0
                 self.update_in_flight = False
+                self.update_info_all = []
 
         # set asynchronous stream for d2d expert weight update
         self.reqs = []
