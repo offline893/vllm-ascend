@@ -617,7 +617,7 @@ class AscendW8A8DynamicFusedMoEMethod:
         global_redundant_expert_num: int = 0,
         shared_experts: Optional[Any] = None,
         **kwargs,
-    ) -> torch.Tensor:
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         assert router_logits.shape[
             1] == global_num_experts, "Number of global experts mismatch"
 
