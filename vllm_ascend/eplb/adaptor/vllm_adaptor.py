@@ -29,6 +29,7 @@ class VllmEplbAdaptor(EplbAdaptor):
     def __init__(self, model, **args):
         super().__init__(**args)
         self.model = model
+        self.rank_id = torch.distributed.get_rank()
         self.param_dict = dict(self.model.named_parameters())
         self.num_dense_layers = self.model.config.first_k_dense_replace
         self.num_moe_layers = self.model.config.num_hidden_layers - self.num_dense_layers
@@ -38,14 +39,21 @@ class VllmEplbAdaptor(EplbAdaptor):
         self.expert_weight_names = ["w13_weight", "w2_weight", "w13_weight_scale", "w13_weight_offset",
             "w2_weight_scale", "w2_weight_offset"]
 
-        self.buffer_tensor_dict = dict()
-        num_buffer_tensor = 100 # TO DO: provide number of buffer tensor by vllm configuration
-        self.init_buffer_tensor_dict(num_buffer_tensor)
-
         self.expert_map_per_layer = dict()
         for layer_idx in range(self.num_moe_layers):
             self.expert_map_per_layer[self.num_dense_layers + layer_idx] =\
                 self.model.get_expert_map(self.num_dense_layers + layer_idx)
+
+        self.buffer_tensor_dict = dict()     # reference to expert map on device for expert map update
+        self.buffer_tensor_dict_cpu = dict() # copy of expert map on CPU to avoid device synchronize frequently
+        # TODO: here we set number of buffer tensor equal to number of expert in each laryer, which can be improved
+        num_buffer_tensor = torch.where(self.expert_map_per_layer[self.num_dense_layers] != -1)[0].numel()
+        self.init_buffer_tensor_dict(num_buffer_tensor)
+
+        self.log2phy_map_per_layer = dict()
+        for layer_idx in range(self.num_moe_layers):
+            self.log2phy_map_per_layer[self.num_dense_layers + layer_idx] =\
+                self.model.get_log2phy_map(self.num_dense_layers + layer_idx)
 
     def init_buffer_tensor_dict(self, num_buffer_tensor):
         for name in self.expert_weight_names:
@@ -60,7 +68,7 @@ class VllmEplbAdaptor(EplbAdaptor):
     def get_expert_tensor(self, layer_id, global_expert_id_to_send):
         for name in self.expert_weight_names:
             complete_name = "model.layers." + str(layer_id) + ".mlp.experts." + name
-            local_expert_id = self.expert_map_per_layer[layer_id][global_expert_id_to_send].item()
+            local_expert_id = self.expert_map_per_layer_cpu[layer_id][global_expert_id_to_send].item()
             yield self.param_dict[complete_name].data[local_expert_id]
 
     def get_rank_expert_workload(self, num_moe_layers):
@@ -80,19 +88,84 @@ class VllmEplbAdaptor(EplbAdaptor):
         all_maps = gathered.permute(1, 0, 2)
         all_expert_maps = all_maps.cpu()
 
+        for layer_idx in range(num_moe_layers):
+            self.log2phy_map_per_layer_cpu[self.num_dense_layers + layer_idx] = \
+                all_expert_maps[layer_idx][self.rank_id]
+
         return all_expert_maps
 
     def do_update_expert_map(self, layer_id, updated_expert_map):
         self.expert_map_per_layer[layer_id].copy_(updated_expert_map)
+        self.expert_map_per_layer_cpu[layer_id].copy_(updated_expert_map)
 
-    def do_update_expert_weight(self, layer_id, expert_id_before_replace, buffer_tensor_id):
+    def do_update_expert_weight(self, layer_id, local_expert_to_replace, buffer_tensor_id):
         for name in self.expert_weight_names:
             complete_name = "model.layers." + str(layer_id) + ".mlp.experts." + name
-            local_expert_id = self.expert_map_per_layer[layer_id][expert_id_before_replace].item()
-            expert_tensor = self.param_dict[complete_name].data[local_expert_id]
+            expert_tensor = self.param_dict[complete_name].data[local_expert_to_replace]
             expert_tensor.copy_(self.buffer_tensor_dict[name][buffer_tensor_id])
 
+    def generate_index_dicts(self, tensor_2d):
+        dict_list = []
+        current_idx = 0
+
+        for row in tensor_2d:
+            value_to_index = {}
+            for i in range(row.size(0)):
+                value = row[i].item()
+                value_to_index[value] = current_idx + i
+            dict_list.append(value_to_index)
+            current_idx += row.size(0)
+
+        return dict_list
+
+    def generate_log2phy_map(self, expert_map):
+        num_local_experts = expert_map.max() + 1
+        expert_map = self.global2local(expert_map,num_local_experts)
+        ranks_num, global_expert_num = expert_map.shape
+        concatenated = torch.flatten(expert_map)
+        rank_expert_to_global = self.generate_index_dicts(
+            expert_map)
+        result_dict: Dict[int, List[int]] = {}
+        for idx, value in enumerate(concatenated):
+            key = value.item()
+            if key not in result_dict:
+                result_dict[key] = []
+            result_dict[key].append(idx)
+
+        log2phy_map = torch.full((ranks_num, self.global_expert_num),
+                                    -1,
+                                    dtype=torch.int32)
+        for rank in range(ranks_num):
+            for key in result_dict:
+                indices_in_concat = result_dict[key]
+                if key in rank_expert_to_global[rank]:
+                    log2phy_map[rank][key] = rank_expert_to_global[rank][key]
+                else:
+                    chosen_index = random.choice(indices_in_concat)
+                    log2phy_map[rank][key] = chosen_index
+        return log2phy_map
+
     def do_update_log2phy_map(self, layer_id, updated_log2phy_map):
-        rank_id = torch.distributed.get_rank()
         if self.log2phy_map_per_layer[layer_id] is not None:
-            self.log2phy_map_per_layer[layer_id].copy_(updated_log2phy_map[rank_id])
+            self.log2phy_map_per_layer[layer_id].copy_(updated_log2phy_map[self.rank_id])
+
+    def global2local(self,
+        placement: torch.Tensor,
+        E_local: int
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+
+        G, _ = placement.shape
+        device = placement.device
+
+        pt_local = torch.full(( G, E_local),
+                              fill_value=-1,
+                              dtype=torch.long,
+                              device=device)
+
+        valid = placement >= 0
+        g_idx, k_idx = valid.nonzero(as_tuple=True)
+        slot_idx = placement[g_idx, k_idx]
+
+        pt_local[g_idx, slot_idx] = k_idx
+
+        return pt_local
