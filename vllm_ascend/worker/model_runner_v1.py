@@ -404,7 +404,7 @@ class NPUModelRunner(LoRAModelRunnerMixin):
 
         if self.enable_eplb == True:
             self.eplb_adaptor = None
-            self.eplb_updator = EplbUpdator()
+            self.eplb_updator = EplbUpdator(ascend_config.expert_map_path != None)
 
         # NOTE: we need to use `in_profile_run` to determine whether `enable_force_load_balance` is True
         self.in_profile_run = False
