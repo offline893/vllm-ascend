@@ -19,6 +19,7 @@ from typing import Optional, Tuple, Union
 
 import torch
 from vllm.model_executor.layers.layernorm import RMSNorm
+from vllm_ascend.utils import dispose_tensor
 
 
 def forward_oot(
@@ -29,8 +30,14 @@ def forward_oot(
     import torch_npu
 
     if residual is not None:
+        old_x = x
+        old_residual = residual
         x, _, residual = torch_npu.npu_add_rms_norm(x, residual, self.weight,
                                                     self.variance_epsilon)
+        # Because torch_npu can't support inplace npu_add_rms_norm,
+        # we should delete old tensor to save memory.
+        dispose_tensor(old_x)
+        dispose_tensor(old_residual)
         return x, residual
 
     x, residual = torch_npu.npu_rms_norm(x, self.weight, self.variance_epsilon)
