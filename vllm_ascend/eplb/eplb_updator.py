@@ -47,7 +47,7 @@ class EplbUpdator:
         self.cur_iterations: torch.int64 = 0
 
         self.wait_worker_iterations: torch.int64 = 0
-        self.num_wait_worker_iterations: torch.int64 = 10
+        self.num_wait_worker_iterations: torch.int64 = 20
 
         self.planner_block_queue = Queue()
         self.block_update_queue = Queue(maxsize=1)
