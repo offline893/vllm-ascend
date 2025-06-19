@@ -937,7 +937,7 @@ class AscendFusedMoE(FusedMoE):
         router_logits, _ = gate(hidden_states)
 
         # Matrix multiply.
-        hidden_states, topk_ids = self.quant_method.apply(
+        hidden_states, self.topk_ids = self.quant_method.apply(
             layer=self,
             x=hidden_states,
             router_logits=router_logits,
@@ -957,7 +957,7 @@ class AscendFusedMoE(FusedMoE):
             global_redundant_expert_num=self.global_redundant_expert_num)
 
         self.expert_load_balancer.accumulate_expert_distribution_record(
-            self.moe_instance_id, topk_ids)
+            self.moe_instance_id, self.topk_ids)
 
         if self.dp_size > 1:
             if VLLM_ENABLE_MC2 and not is_prefill:
