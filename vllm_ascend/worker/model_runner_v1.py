@@ -1594,6 +1594,9 @@ class NPUModelRunner(LoRAModelRunnerMixin):
         # Cache the dummy encoder outputs.
         self.encoder_cache["tmp"] = dict(enumerate(dummy_encoder_outputs))
 
+    def do_get_expert_load(self) -> str:
+        return self.eplb_updator.get_expert_load()
+
     @torch.inference_mode()
     def _dummy_run(
         self,
