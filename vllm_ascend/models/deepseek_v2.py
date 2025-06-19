@@ -745,6 +745,22 @@ class CustomDeepseekV2ForCausalLM(DeepseekV2ForCausalLM):
                                    inputs_embeds)
         return hidden_states
 
+    def get_expert_map(self,layer_id):
+        return self.model.layers[layer_id].mlp.experts.get_map()
+
+    def get_log2phy_map(self,layer_id):
+        return self.model.layers[layer_id].mlp.experts.get_log2phy_map()
+
+    def get_all_expert_map(self,num_moe_layers):
+        all_loads = []
+        for layer_id in range(num_moe_layers):
+            load_tensor = self.get_expert_map(3+layer_id)  # (num_experts_per_layer,)
+            all_loads.append(load_tensor)
+
+        return torch.stack(all_loads, dim=0)
+
+    def get_topk_ids(self,layer_id):
+        return self.model.layers[layer_id+3].mlp.experts.topk_ids
 
 class CustomDeepseekV3ForCausalLM(CustomDeepseekV2ForCausalLM):
     pass

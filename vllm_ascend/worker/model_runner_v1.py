@@ -81,6 +81,9 @@ import vllm.envs as envs_vllm
 
 import vllm_ascend.envs as envs_ascend
 
+from vllm_ascend.eplb.eplb_updator import EplbUpdator
+from vllm_ascend.eplb.adaptor.vllm_adaptor import VllmEplbAdaptor
+from vllm_ascend.eplb.core.loader.device_transfer_loader import D2DExpertWeightLoader
 
 @dataclass
 class GraphCaptureContext:
@@ -351,6 +354,11 @@ class NPUModelRunner(LoRAModelRunnerMixin):
 
         self.dp_size = vllm_config.parallel_config.data_parallel_size
         self.dp_rank = vllm_config.parallel_config.data_parallel_rank
+        #EPLB
+        self.dynamic_eplb = ascend_config.dynamic_eplb
+        if self.dynamic_eplb == True:
+            self.eplb_adaptor = None
+            self.eplb_updator = EplbUpdator(ascend_config.expert_map_path != None)
 
     def _update_states(self, scheduler_output: "SchedulerOutput") -> None:
         """Update the cached states and the persistent batch with the scheduler
@@ -934,6 +942,8 @@ class NPUModelRunner(LoRAModelRunnerMixin):
         if not scheduler_output.total_num_scheduled_tokens:
             # Return empty ModelRunnerOuptut if there's no work to do.
             return EMPTY_MODEL_RUNNER_OUTPUT
+        if self.dynamic_eplb:
+            self.eplb_updator.forward_before()
         (attn_metadata, hidden_states, spec_decode_metadata, positions,
          num_scheduled_tokens,
          sample_indices) = (self._process_reqs(scheduler_output,
@@ -1027,6 +1037,8 @@ class NPUModelRunner(LoRAModelRunnerMixin):
             logprobs=logprobs_lists,
             prompt_logprobs_dict={},
         )
+        if self.dynamic_eplb:
+            self.eplb_updator.forward_end()
         return model_runner_output
 
     def _profile_multimodal(self) -> None:
@@ -1197,6 +1209,11 @@ class NPUModelRunner(LoRAModelRunnerMixin):
                         positions=positions,
                         intermediate_tensors=intermediate_tensors,
                         inputs_embeds=inputs_embeds)
+                #EPLB
+                if self.dynamic_eplb == True:
+                    self.eplb_adaptor = VllmEplbAdaptor(model=self.model)
+                    self.eplb_updator.set_adaptor(self.eplb_adaptor)
+                    self.eplb_updator.warm_up_eplb()
                 return hidden_states
 
     def profile_run(self) -> None:

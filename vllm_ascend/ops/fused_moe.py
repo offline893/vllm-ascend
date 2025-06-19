@@ -740,6 +740,8 @@ class AscendFusedMoE(FusedMoE):
 
         AscendFusedMoE.moe_counter += 1
         self.moe_instance_id = AscendFusedMoE.moe_counter
+        self.moe_load = None
+        self.topk_ids =  None
 
         if params_dtype is None:
             params_dtype = torch.get_default_dtype()
@@ -780,6 +782,7 @@ class AscendFusedMoE(FusedMoE):
         self.expert_load_balancer = ExpertLoadBalancer.get_instance()
         ascend_config = get_ascend_config()
         expert_map_path = ascend_config.expert_map_path
+        self.dynamic_eplb = ascend_config.dynamic_eplb
         if expert_map_path and os.path.exists(expert_map_path):
             # only support in MC2 and graph mode
             if not (VLLM_ENABLE_MC2
@@ -979,3 +982,12 @@ class AscendFusedMoE(FusedMoE):
             hidden_states = tensor_model_parallel_all_reduce(hidden_states)
 
         return hidden_states
+
+    def update_map(self,new_expert_map):
+        self.expert_map = new_expert_map
+
+    def get_map(self):
+        return self.expert_map
+
+    def get_log2phy_map(self):
+        return self.log2phy
