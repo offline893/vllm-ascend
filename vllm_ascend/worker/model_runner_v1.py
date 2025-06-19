@@ -1209,11 +1209,6 @@ class NPUModelRunner(LoRAModelRunnerMixin):
                         positions=positions,
                         intermediate_tensors=intermediate_tensors,
                         inputs_embeds=inputs_embeds)
-                #EPLB
-                if self.dynamic_eplb == True:
-                    self.eplb_adaptor = VllmEplbAdaptor(model=self.model)
-                    self.eplb_updator.set_adaptor(self.eplb_adaptor)
-                    self.eplb_updator.warm_up_eplb()
                 return hidden_states
 
     def profile_run(self) -> None:
@@ -1618,3 +1613,10 @@ class NPUModelRunner(LoRAModelRunnerMixin):
             if batch_size <= padded_batch_size < selected_batch_size:
                 selected_batch_size = padded_batch_size
         return selected_batch_size
+
+    def eplb_warmup(self):
+        #EPLB
+        if self.dynamic_eplb == True:
+            self.eplb_adaptor = VllmEplbAdaptor(model=self.model)
+            self.eplb_updator.set_adaptor(self.eplb_adaptor)
+            self.eplb_updator.warm_up_eplb()
