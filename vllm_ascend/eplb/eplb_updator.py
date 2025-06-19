@@ -97,7 +97,8 @@ class EplbUpdator:
         # Batch after eplb process being triggered, get update info provided by eplb process
         if self.update_in_flight and self.weight_update_counter == 0 and self.wait_worker_iterations == self.num_wait_worker_iterations:
             self.wait_worker_iterations = 0
-            self.update_info_all = self.block_update_queue.get()
+            packed_update_info = self.block_update_queue.get()
+            self.update_info_all = self.unpack_update_batch(packed_update_info)
             self.weight_loading = True
 
         if self.update_in_flight and self.weight_loading and self.weight_update_counter < self.num_moe_layers:
@@ -108,7 +109,7 @@ class EplbUpdator:
             expert_recv_info_this_rank = expert_recv_info[rank_id] if rank_id in expert_recv_info else []
             #logger.info(f"check update info, layer = {layer_id}, send = {expert_send_info_this_rank}, recv = {expert_recv_info_this_rank}")
             self.eplb_loader.generate_expert_d2d_transfer_task(expert_send_info_this_rank,
-                expert_recv_info_this_rank, updated_expert_map[rank_id], layer_id + 3)
+                expert_recv_info_this_rank, updated_expert_map, layer_id + 3)
             self.weight_update_counter += 1
             if self.weight_update_counter == self.num_moe_layers:
                 self.weight_update_counter = 0
@@ -138,13 +139,12 @@ class EplbUpdator:
         self._gather_buffer = None
         if dist.is_initialized():
             self.world_size = dist.get_world_size()
-        if dist.is_initialized():
-            device = local_load.device
+            self.device = local_load.device
             if self._gather_buffer is None:
                 shape = (self.world_size, *local_load.shape)
                 self._gather_buffer = torch.empty(shape,
                                                   dtype=local_load.dtype,
-                                                  device=device)
+                                                  device=self.device)
 
             dist.all_gather_into_tensor(self._gather_buffer, local_load)
 
@@ -156,6 +156,53 @@ class EplbUpdator:
             self.shared_dict["moe_load"] = moe_load.cpu()
             logger.debug(f"[ModelRunner] Updated shared_dict['moe_load'] shape={moe_load.shape}")
         return moe_load
+
+    def warm_up_eplb(self):
+
+        self.compute_and_set_moe_load()
+
+        src_tensor = torch.empty((1,), device=self.device)
+        self_rank = dist.get_rank()
+
+        comm_op_list = []
+
+        for dst_rank in range(self.world_size):
+            if dst_rank == self_rank:
+                continue
+            comm_op_list.append(
+                dist.P2POp(dist.isend, src_tensor, dst_rank)
+            )
+
+        for src_rank in range(self.world_size):
+            if src_rank == self_rank:
+                continue
+            comm_op_list.append(
+                dist.P2POp(dist.irecv, src_tensor, src_rank)
+        )
+        if comm_op_list:
+            reqs = dist.batch_isend_irecv(comm_op_list)
+
+        for req in reqs:
+            req.wait()
+
+    def unpack_update_batch(self, packed_update_info):
+        """
+        Unpack the IPC batch back into original update_info_list.
+        """
+        send_all, recv_all, stacked_maps, stacked_log2phy, layer_id_tensor = packed_update_info
+
+        # 拆分 Tensor，得到 N 个张量的 tuple
+        maps = stacked_maps.unbind(0)
+        log2phy = stacked_log2phy.unbind(0)
+
+        # 把 layer_id_tensor 转成 Python int 列表
+        layer_ids = layer_id_tensor.tolist()
+
+        recovered = [
+            (s, r, m, l, lid)
+            for s, r, m, l, lid in zip(send_all, recv_all, maps, log2phy, layer_ids)
+        ]
+        return recovered
 
     def shutdown(self):
         """
