@@ -1582,7 +1582,7 @@ class NPUModelRunner(LoRAModelRunnerMixin):
         return self.eplb_updator.get_expert_load()
 
     def eplb_warmup(self):
-        #EPLBMore actions
+        #EPLB
         if self.dynamic_eplb == True:
             self.eplb_adaptor = VllmEplbAdaptor(model=self.model)
             self.eplb_updator.set_adaptor(self.eplb_adaptor)
