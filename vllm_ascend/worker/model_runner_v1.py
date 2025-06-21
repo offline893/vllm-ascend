@@ -1578,7 +1578,7 @@ class NPUModelRunner(LoRAModelRunnerMixin):
         self.encoder_cache.clear()
         gc.collect()
 
-    def do_get_expert_load(self) -> str:More actions
+    def do_get_expert_load(self) -> str:
         return self.eplb_updator.get_expert_load()
 
     def eplb_warmup(self):

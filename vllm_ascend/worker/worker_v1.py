@@ -211,7 +211,7 @@ class NPUWorker(WorkerBase):
 
     def get_expert_load(self) -> str:
         """ todo 一共几个worker"""
-        moe_load = self.model_runner.do_get_expert_load()More actions
+        moe_load = self.model_runner.do_get_expert_load()
         return moe_load
 
     def get_model(self) -> nn.Module:
