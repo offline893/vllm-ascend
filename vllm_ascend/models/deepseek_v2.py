@@ -736,7 +736,7 @@ class CustomDeepseekV2ForCausalLM(DeepseekV2ForCausalLM):
         self.num_dense_layers = self.config.first_k_dense_replace
         self.num_moe_layers = self.config.num_hidden_layers - self.num_dense_layers
         self.model = CustomDeepseekV2Model(vllm_config=vllm_config,
-                                   prefix=maybe_prefix(
+                                           prefix=maybe_prefix(
                                                prefix, "model"))
 
         if get_pp_group().is_last_rank:

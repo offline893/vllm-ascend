@@ -41,15 +41,9 @@ import os
 
 import pytest
 
-<<<<<<<< HEAD:tests/long_term/spec_decode_v0/e2e/test_medusa_correctness.py
 from tests.long_term.spec_decode_v0.e2e.conftest import \
     run_equality_correctness_test
 from tests.long_term.spec_decode_v0.utils import maybe_enable_chunked_prefill
-========
-from tests.e2e.long_term.spec_decode.e2e.conftest import \
-    run_equality_correctness_test
-from tests.e2e.long_term.spec_decode.utils import maybe_enable_chunked_prefill
->>>>>>>> 69b817e ([CI] Add unit test framework (#1201)):tests/e2e/long_term/spec_decode/e2e/test_medusa_correctness.py
 
 # main model
 # lmsys/vicuna-7b-v1.3 was to be used but it's causing

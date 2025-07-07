@@ -44,15 +44,9 @@ for the target model outputs.
 
 import pytest
 
-<<<<<<<< HEAD:tests/long_term/spec_decode_v0/e2e/test_ngram_correctness.py
 from tests.long_term.spec_decode_v0.e2e.conftest import \
     run_equality_correctness_test
 from tests.long_term.spec_decode_v0.utils import maybe_enable_chunked_prefill
-========
-from tests.e2e.long_term.spec_decode.e2e.conftest import \
-    run_equality_correctness_test
-from tests.e2e.long_term.spec_decode.utils import maybe_enable_chunked_prefill
->>>>>>>> 69b817e ([CI] Add unit test framework (#1201)):tests/e2e/long_term/spec_decode/e2e/test_ngram_correctness.py
 
 
 @pytest.mark.parametrize(

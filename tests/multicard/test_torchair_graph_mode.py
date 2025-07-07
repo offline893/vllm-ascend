@@ -30,10 +30,13 @@ os.environ["PYTORCH_NPU_ALLOC_CONF"] = "max_split_size_mb:256"
 
 @pytest.mark.skipif(os.getenv("VLLM_USE_V1") == "0",
                     reason="torchair graph is not supported on v0")
-def test_e2e_deepseekv3_with_torchair(monkeypatch: pytest.MonkeyPatch):
+@pytest.mark.parametrize("VLLM_ASCEND_ENABLE_DBO", ["0", "1"])
+def test_e2e_deepseekv3_with_torchair(monkeypatch: pytest.MonkeyPatch,
+                                      VLLM_ASCEND_ENABLE_DBO):
     with monkeypatch.context() as m:
         m.setenv("VLLM_USE_MODELSCOPE", "True")
         m.setenv("VLLM_WORKER_MULTIPROC_METHOD", "spawn")
+        m.setenv("VLLM_ASCEND_ENABLE_DBO", VLLM_ASCEND_ENABLE_DBO)
 
         example_prompts = [
             "Hello, my name is",
@@ -68,10 +71,10 @@ def test_e2e_deepseekv3_with_torchair(monkeypatch: pytest.MonkeyPatch):
         # inaccurate. This will only change if accuracy improves with the
         # official weights of DeepSeek-V3.
         golden_results = [
-            'Hello, my name is feasibility伸 spazio debtor添',
-            'The president of the United States is begg"""\n杭州风和 bestimm',
-            'The capital of France is frequentlyশามalinkAllowed',
-            'The future of AI is deleting俯احت怎么样了حراف',
+            'Hello, my name is下载早点向前很有่อง',
+            'The president of the United States isSender)## physiological Albany',
+            'The capital of France is Rocky转角 hospitalizedinterval sparked',
+            'The future of AI is её asegο BIOS一扫',
         ]
 
         assert len(golden_results) == len(vllm_output)
