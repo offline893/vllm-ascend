@@ -37,6 +37,8 @@ class EplbUpdator:
         self.eplb_loader = D2DExpertWeightLoader(eplb_adaptor=self.adaptor)
         self.num_moe_layers = self.adaptor.num_moe_layers
         self.global_expert_num = self.adaptor.global_expert_num
+        self.total_iterations = self.num_iterations_eplb_update +\
+            self.num_wait_worker_iterations + self.num_moe_layers
 
     def init_eplb(self, expert_map_path):
         self.num_expert_load_gather = 10
@@ -62,9 +64,7 @@ class EplbUpdator:
         self.cur_iterations: torch.int64 = 0
         self.eplb_counter = 0
 
-        self.num_wait_worker_iterations: torch.int64 =
-        self.total_iterations = self.num_iterations_eplb_update +\
-            self.num_wait_worker_iterations + self.num_moe_layers
+        self.num_wait_worker_iterations: torch.int64 = 30
 
         self.planner_block_queue = Queue()
         self.block_update_queue = Queue(maxsize=1)
