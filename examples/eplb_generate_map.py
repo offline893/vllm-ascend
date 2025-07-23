@@ -1,6 +1,7 @@
-import numpy as np
-import json
 import argparse
+import json
+
+import numpy as np
 
 
 def split_and_insert(n, k, m):
