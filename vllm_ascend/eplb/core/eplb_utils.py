@@ -36,7 +36,7 @@ def generate_log2phy_map(expert_map):
 
         if num_rank_holding_expert == 1:
             log2phy_map[negative_rank_idx, idx] = torch.full(
-                (num_ranks - 1,),
+                (num_ranks - 1, ),
                 log2phy_map[positive_rank_idx, idx].item(),
                 dtype=log2phy_map.dtype)
         else:
