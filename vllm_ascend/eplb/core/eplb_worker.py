@@ -15,16 +15,17 @@
 # This file is a part of the vllm-ascend project.
 #
 
-import numpy as np
-import networkx as nx
-import torch
-import torch.distributed as dist
 from multiprocessing import Process
 from typing import Any
+
+import networkx as nx
+import numpy as np
+import torch
+import torch.distributed as dist
 from vllm.logger import logger
 
-from vllm_ascend.eplb.core.policy.policy_factory import PolicyFactory, DynamicConfig
 from vllm_ascend.eplb.core.eplb_utils import generate_log2phy_map
+from vllm_ascend.eplb.core.policy.policy_factory import PolicyFactory, DynamicConfig
 
 
 class EplbWorker:
@@ -273,7 +274,7 @@ class EplbWorker:
                     candidate_src_rank_indices = src_rank_indices[
                         experts_to_send == expert_id]
 
-                #TODO: improve selection criterion of npu sending expert_id considering such as intra-node or inter-node...
+                # TODO: improve selection criterion of npu sending expert_id considering such as intra-node or inter-node...
                 src_rank_id = candidate_src_rank_indices[0].item()
                 if src_rank_id not in expert_send_info_this_layer:
                     expert_send_info_this_layer[src_rank_id] = []

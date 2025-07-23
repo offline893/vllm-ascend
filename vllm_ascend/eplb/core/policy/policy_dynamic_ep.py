@@ -1,6 +1,7 @@
 # Copyright Huawei Technologies Co., Ltd. 2024-2025. All rights reserved.
 from collections import defaultdict
 from typing import cast
+
 import numpy as np
 
 from .policy_abstract import EplbPolicy, DynamicConfig
@@ -59,10 +60,10 @@ class DynamicEplb(EplbPolicy):
                                         kind='stable')[::-1]
             weights = [origin_weights[idx] for idx in sorted_indices]
             tmp_raw_weight = weights[0][1] * (
-                len(route_expert_redundancy[weights[0][0]]) + 1)
+                    len(route_expert_redundancy[weights[0][0]]) + 1)
             route_expert_redundancy[weights[0][0]].append(route_expert_num + i)
             avg_weight = tmp_raw_weight / (
-                len(route_expert_redundancy[weights[0][0]]) + 1)
+                    len(route_expert_redundancy[weights[0][0]]) + 1)
             weights[0] = (weights[0][0], avg_weight)
             origin_weights = weights
 
@@ -106,7 +107,7 @@ class DynamicEplb(EplbPolicy):
                                                      == items_per_box
                                                      and remaining_items > 0):
                     if min_box_index == -1 or box_weights[i] < box_weights[
-                            min_box_index]:
+                        min_box_index]:
                         min_box_index = i
 
             # Place the item (id) into the selected box
@@ -146,10 +147,10 @@ class DynamicEplb(EplbPolicy):
                                         kind='stable')[::-1]
             weights = [origin_weights[idx] for idx in sorted_indices]
             tmp_raw_weight = weights[0][1] * (
-                len(route_expert_redundancy[weights[0][0]]) + 1)
+                    len(route_expert_redundancy[weights[0][0]]) + 1)
             route_expert_redundancy[weights[0][0]].append(route_expert_num + i)
             avg_weight = tmp_raw_weight / (
-                len(route_expert_redundancy[weights[0][0]]) + 1)
+                    len(route_expert_redundancy[weights[0][0]]) + 1)
             weights[0] = (weights[0][0], avg_weight)
             origin_weights = weights
 
@@ -164,7 +165,7 @@ class DynamicEplb(EplbPolicy):
         box_weights = [0] * card_num
         box_counts = [0] * card_num
 
-        all_weights = np.zeros((expert_num, ), dtype='object')
+        all_weights = np.zeros((expert_num,), dtype='object')
         all_weights[:route_expert_num] = origin_weights
 
         index = route_expert_num
@@ -186,7 +187,7 @@ class DynamicEplb(EplbPolicy):
                                                      == items_per_box
                                                      and remaining_items > 0):
                     if min_box_index == -1 or box_weights[i] < box_weights[
-                            min_box_index]:
+                        min_box_index]:
                         if item_id not in boxes[i]:
                             min_box_index = i
 
@@ -234,7 +235,7 @@ class DynamicEplb(EplbPolicy):
                                                      == items_per_box
                                                      and remaining_items > 0):
                     if min_box_index == -1 or box_weights[i] < box_weights[
-                            min_box_index]:
+                        min_box_index]:
                         min_box_index = i
 
             boxes[min_box_index].append(item_id)
@@ -292,7 +293,7 @@ class DynamicEplb(EplbPolicy):
                     flag = True
                     for j in range(num):
                         if new_list[i] == current_list[j] and new_index[
-                                j] == -1:
+                            j] == -1:
                             new_index[j] = 0
                             new_result[j] = current_list[j]
                             flag = False
@@ -355,7 +356,7 @@ class DynamicEplb(EplbPolicy):
         for layer in range(layer_num):
             # Get the expert IDs and their corresponding workloads for the current layer;
             # workloads need to be normalized, and one redundant expert is added per card
-            weights = np.zeros((expert_num, ), dtype='object')
+            weights = np.zeros((expert_num,), dtype='object')
             for expert_id, workload_weight in enumerate(
                     layer_workloads[layer]):
                 weights[expert_id] = (expert_id, workload_weight)

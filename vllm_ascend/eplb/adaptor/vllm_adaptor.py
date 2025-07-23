@@ -15,12 +15,13 @@
 # This file is a part of the vllm-ascend project.
 #
 import json
-import torch
-import torch.distributed as dist
 from typing import Any
 
-from vllm_ascend.eplb.adaptor.abstract_adaptor import EplbAdaptor
+import torch
+import torch.distributed as dist
 from vllm.logger import logger
+
+from vllm_ascend.eplb.adaptor.abstract_adaptor import EplbAdaptor
 
 
 class VllmEplbAdaptor(EplbAdaptor):
@@ -46,7 +47,7 @@ class VllmEplbAdaptor(EplbAdaptor):
         self.expert_map_per_layer_cpu = dict(
         )  # copy of expert map on CPU to avoid device synchronize frequently
         for layer_idx in range(self.num_moe_layers):
-            self.expert_map_per_layer[self.num_dense_layers + layer_idx] =\
+            self.expert_map_per_layer[self.num_dense_layers + layer_idx] = \
                 self.model.get_expert_map(self.num_dense_layers + layer_idx)
 
         # TODO: here we set number of buffer tensor equal to number of expert in each laryer, which can be improved
@@ -62,7 +63,7 @@ class VllmEplbAdaptor(EplbAdaptor):
 
         self.log2phy_map_per_layer = dict()
         for layer_idx in range(self.num_moe_layers):
-            self.log2phy_map_per_layer[self.num_dense_layers + layer_idx] =\
+            self.log2phy_map_per_layer[self.num_dense_layers + layer_idx] = \
                 self.model.get_log2phy_map(self.num_dense_layers + layer_idx)
 
         self.all_topk_ids = []
@@ -72,15 +73,15 @@ class VllmEplbAdaptor(EplbAdaptor):
             complete_name = "model.layers." + str(
                 self.num_dense_layers) + ".mlp.experts." + name
             expert_tensor = self.param_dict[complete_name].data[
-                0:num_buffer_tensor]
+                            0:num_buffer_tensor]
             buffer_tensors = torch.empty_like(expert_tensor)
             for buffer_id in range(num_buffer_tensor):
                 self.buffer_tensor_list[buffer_id].append(
                     buffer_tensors[buffer_id])
 
     def init_expert_param_per_layer(self):
-        num_local_expert = self.param_dict["model.layers." + str(self.num_dense_layers) +\
-            ".mlp.experts." + self.expert_weight_names[0]].data.shape[0]
+        num_local_expert = self.param_dict["model.layers." + str(self.num_dense_layers) + \
+                                           ".mlp.experts." + self.expert_weight_names[0]].data.shape[0]
         for moe_layer_id in range(self.num_moe_layers):
             layer_idx = self.num_dense_layers + moe_layer_id
             self.expert_param_per_layer[layer_idx] = list()
@@ -126,7 +127,7 @@ class VllmEplbAdaptor(EplbAdaptor):
             expert_map_all = self.determine_expert_map_all()
 
         for layer_idx in range(num_moe_layers):
-            self.expert_map_per_layer_cpu[layer_idx+3] = \
+            self.expert_map_per_layer_cpu[layer_idx + 3] = \
                 expert_map_all[layer_idx][self.rank_id]
         return expert_map_all
 

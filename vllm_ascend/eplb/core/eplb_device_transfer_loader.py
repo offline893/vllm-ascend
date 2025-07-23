@@ -14,9 +14,9 @@
 # limitations under the License.
 # This file is a part of the vllm-ascend project.
 #
-import torch.distributed as dist
 from enum import Enum
 
+import torch.distributed as dist
 from vllm.logger import logger
 
 
@@ -62,7 +62,7 @@ class D2DExpertWeightLoader:
             local_expert_id = self.eplb_adaptor.expert_map_per_layer_cpu[
                 layer_id][global_expert_id_to_send].item()
             for src_tensor in self.eplb_adaptor.expert_param_per_layer[
-                    layer_id][local_expert_id]:
+                layer_id][local_expert_id]:
                 self.comm_op_list.append(
                     dist.P2POp(dist.isend, src_tensor, dst_rank))
 
@@ -70,7 +70,7 @@ class D2DExpertWeightLoader:
         for recv_info in expert_recv_info:
             recv_rank, global_expert_id_to_recv = recv_info
             for buffer_tensor in self.eplb_adaptor.buffer_tensor_list[
-                    buffer_tensor_id]:
+                buffer_tensor_id]:
                 self.comm_op_list.append(
                     dist.P2POp(dist.irecv, buffer_tensor, recv_rank))
             local_expert_to_replace = self.updated_expert_map[
@@ -112,7 +112,7 @@ class D2DExpertWeightLoader:
         self.eplb_adaptor.do_update_expert_map(self.layer_id,
                                                self.updated_expert_map)
 
-        #update log2phy_map
+        # update log2phy_map
         if redundant_enable:
             self.eplb_adaptor.do_update_log2phy_map(self.layer_id,
                                                     self.updated_log2phy_map)

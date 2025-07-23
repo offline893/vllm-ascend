@@ -15,16 +15,17 @@
 # This file is a part of the vllm-ascend project.
 #
 
-import torch
-import numpy
-import torch.distributed as dist
-import vllm.envs as envs
 from multiprocessing import Queue, Manager
 
+import numpy
+import torch
+import torch.distributed as dist
+import vllm.envs as envs
 from vllm.logger import logger
-from vllm_ascend.eplb.core.eplb_worker import EplbProcess
-from vllm_ascend.eplb.core.eplb_device_transfer_loader import D2DExpertWeightLoader
+
 from vllm_ascend.ascend_config import get_ascend_config
+from vllm_ascend.eplb.core.eplb_device_transfer_loader import D2DExpertWeightLoader
+from vllm_ascend.eplb.core.eplb_worker import EplbProcess
 
 
 class EplbUpdator:
@@ -93,8 +94,8 @@ class EplbUpdator:
 
     def update_iteration(self):
         self.cur_iterations += 1
-        if self.cur_iterations == (self.num_iterations_eplb_update +\
-            self.num_wait_worker_iterations + self.num_moe_layers):
+        if self.cur_iterations == (self.num_iterations_eplb_update + \
+                                   self.num_wait_worker_iterations + self.num_moe_layers):
             self.adaptor.model.clear_all_moe_loads()
             if not self.gate_eplb:
                 self.cur_iterations = 0
@@ -108,7 +109,7 @@ class EplbUpdator:
 
     def update_expert_weight_flag(self):
         weight_update_counter = self.cur_iterations - (
-            self.num_iterations_eplb_update + self.num_wait_worker_iterations)
+                self.num_iterations_eplb_update + self.num_wait_worker_iterations)
         return (weight_update_counter >= 0
                 and weight_update_counter < self.num_moe_layers)
 
@@ -117,7 +118,7 @@ class EplbUpdator:
             if not self.expert_map_initialized:
                 self.shared_dict[
                     "expert_maps"] = self.adaptor.get_init_expert_map_from_file(
-                        self.num_moe_layers, self.expert_map_path)
+                    self.num_moe_layers, self.expert_map_path)
                 self.expert_map_initialized = True
         except Exception as e:
             logger.warning(f"[ModelRunner] Failed to wake EPLB process: {e}",
@@ -136,7 +137,7 @@ class EplbUpdator:
                 self.eplb_loader.set_log2phy_map(log2phy_map_this_rank)
             updated_expert_map_this_rank = torch.from_numpy(
                 numpy.array(updated_expert_map))
-            #logger.info(f"check update info, layer = {layer_id}, send = {expert_send_info_this_rank}, recv = {expert_recv_info_this_rank}")
+            # logger.info(f"check update info, layer = {layer_id}, send = {expert_send_info_this_rank}, recv = {expert_recv_info_this_rank}")
             self.eplb_loader.generate_expert_d2d_transfer_task(
                 expert_send_info, expert_recv_info,
                 updated_expert_map_this_rank,
@@ -195,7 +196,7 @@ class EplbUpdator:
         self.get_init_expert_map()
         self.compute_and_set_moe_load()
 
-        src_tensor = torch.empty((1, ), device=self.device)
+        src_tensor = torch.empty((1,), device=self.device)
         self_rank = dist.get_rank()
 
         comm_op_list = []
