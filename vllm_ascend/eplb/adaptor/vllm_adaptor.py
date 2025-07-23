@@ -100,7 +100,6 @@ class VllmEplbAdaptor(EplbAdaptor):
         expert_map = self.model.get_all_expert_map(num_moe_layers)
         if dist.is_initialized():
             world_size = dist.get_world_size()
-            rank = dist.get_rank()
 
         gathered = torch.empty(
             (world_size, *expert_map.shape),  # [W, L, E]
