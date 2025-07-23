@@ -15,15 +15,11 @@
 # This file is a part of the vllm-ascend project.
 #
 
-import time
 import numpy as np
 import networkx as nx
 import torch
-import torch_npu
-import logging
 import torch.distributed as dist
-from multiprocessing import Process, Queue, Manager
-from abc import ABC, abstractmethod
+from multiprocessing import Process
 from typing import Any
 from vllm.logger import logger
 
@@ -80,7 +76,7 @@ class EplbWorker:
         self.check_expert_placement(old_placement, new_placement)
         new_expert_maps = self.local2global(new_placement)
         self.update_expert_map(new_expert_maps)
-        logger.debug(f"[EPLB Process  new_map differs, performing D2D")
+        logger.debug(f"EPLB Process  new_map differs, performing D2D")
 
         update_info = self.compose_expert_update_info_greedy(
             new_expert_maps, self.old_expert_maps)
@@ -138,8 +134,6 @@ class EplbWorker:
         current_expert_maps = np.array(current_expert_maps)
 
         num_layers = current_expert_maps.shape[0]
-        num_ranks = current_expert_maps.shape[1]
-        num_experts = current_expert_maps.shape[2]
 
         for layer_id in range(num_layers):
             updated_expert_maps_this_layer = updated_expert_maps[layer_id]
@@ -242,8 +236,6 @@ class EplbWorker:
     def compose_expert_update_info_greedy(self, updated_expert_maps,
                                           current_expert_maps):
         num_layers = current_expert_maps.shape[0]
-        num_ranks = current_expert_maps.shape[1]
-        num_experts = current_expert_maps.shape[2]
 
         for layer_id in range(num_layers):
             updated_expert_maps_this_layer = updated_expert_maps[layer_id]

@@ -1,8 +1,6 @@
 # Copyright # Copyright Huawei Technologies Co., Ltd. 2023-2024. All rights reserved.
 import copy
 import random
-import torch
-import torch
 
 from .policy_abstract import EplbPolicy, DynamicConfig
 
@@ -17,7 +15,6 @@ class RandomLoadBalance(EplbPolicy):
     def rebalance_experts(self, current_expert_table, expert_workload):
         new_table = copy.deepcopy(current_expert_table)
         num_layers = len(current_expert_table)
-        num_card = len(current_expert_table[0])
 
         for i in range(num_layers):
             # randomly choose two card

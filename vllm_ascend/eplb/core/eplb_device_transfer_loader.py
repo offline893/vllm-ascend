@@ -14,7 +14,6 @@
 # limitations under the License.
 # This file is a part of the vllm-ascend project.
 #
-import torch
 import torch.distributed as dist
 from enum import Enum
 

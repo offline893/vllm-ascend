@@ -88,7 +88,6 @@ from vllm_ascend.worker.mtp_proposer_v1 import MtpProposer
 
 from vllm_ascend.eplb.eplb_updator import EplbUpdator
 from vllm_ascend.eplb.adaptor.vllm_adaptor import VllmEplbAdaptor
-from vllm_ascend.eplb.core.eplb_device_transfer_loader import D2DExpertWeightLoader
 
 if TYPE_CHECKING:
     import xgrammar as xgr  # type: ignore[import-untyped]
@@ -393,7 +392,7 @@ class NPUModelRunner(LoRAModelRunnerMixin):
 
         #EPLB
         self.dynamic_eplb = ascend_config.dynamic_eplb
-        if self.dynamic_eplb == True:
+        if self.dynamic_eplb:
             self.eplb_adaptor: Optional[VllmEplbAdaptor] = None
             self.is_eplb_warmuped = False
             self.eplb_updator = EplbUpdator(ascend_config.expert_map_path)

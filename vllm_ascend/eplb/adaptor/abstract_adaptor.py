@@ -15,7 +15,7 @@
 # This file is a part of the vllm-ascend project.
 #
 
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from typing import Any
 
 

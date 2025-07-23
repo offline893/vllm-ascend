@@ -25,7 +25,6 @@ from vllm.logger import logger
 from vllm_ascend.eplb.core.eplb_worker import EplbProcess
 from vllm_ascend.eplb.core.eplb_device_transfer_loader import D2DExpertWeightLoader
 from vllm_ascend.ascend_config import get_ascend_config
-from typing import Any
 
 
 class EplbUpdator:
@@ -52,7 +51,7 @@ class EplbUpdator:
             if not envs.VLLM_ALLOW_EXPERT_LOAD_COLLECTING:
                 self.num_expert_load_gather = self.num_iterations_eplb_update
                 self.periodic_load_gather = False
-        except Exception as e:
+        except Exception:
             self.num_expert_load_gather = self.num_iterations_eplb_update
             self.periodic_load_gather = False
 
@@ -131,7 +130,6 @@ class EplbUpdator:
         if self.update_expert_weight_flag():
             (expert_send_info, expert_recv_info, updated_expert_map,
              log2phy_map, layer_id) = self.update_info_all.pop(0)
-            rank_id = torch.distributed.get_rank()
             if self.redundant_enable:
                 log2phy_map_this_rank = torch.from_numpy(
                     numpy.array(log2phy_map))
@@ -155,7 +153,7 @@ class EplbUpdator:
 
     def forward_end(self):
         if self.wakeup_eplb_worker_flag():
-            moe_load = self.compute_and_set_moe_load(is_clear=True)
+            self.compute_and_set_moe_load(is_clear=True)
             self.wakeup_eplb_worker()
 
         if self.update_expert_weight_flag():

@@ -14,12 +14,9 @@
 # limitations under the License.
 # This file is a part of the vllm-ascend project.
 #
-import os
 import json
 import torch
-import random
 import torch.distributed as dist
-import numpy as np
 from typing import Any
 
 from vllm_ascend.eplb.adaptor.abstract_adaptor import EplbAdaptor
