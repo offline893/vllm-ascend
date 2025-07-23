@@ -2,7 +2,7 @@
 
 ## Overview
 Experts rebalancing of MoE models for LLM serving is a mandatory option.Changing experts dynamically would have a negative impact on TTFT and TPOT while stop-the-world. 
-Asynchronously expert load balacing would be a better choice.
+Asynchronously expert load balancing would be a better choice.
 We have launched SwiftBalancer to support dynamic experts load balancing with Zero-overhead experts movement.
 
 ## Design 
@@ -16,7 +16,7 @@ The overall workflow involves:
 3. Wake up eplb worker process with experts distribution when num_iterations comes. Run eplb algorithm in eplb worker.
 4. Generate p2p send/recv ops and other operator such as log2phy would cost long cpu time.
 5. Lanch ibatch_send_recv in async_stream before forward.
-6. After forward, wait for the ibatch_send_recv finish, then do upate expert map and expert weights.
+6. After forward, wait for the ibatch_send_recv finish, then do uapte expert map and expert weights.
 
 In our profiling shows experts transforming is hidden in the bubble between forward iterations. Cpu time cost of eplb algo. and other python operator such as log2phy
 would be hidden by eplb worker process too.

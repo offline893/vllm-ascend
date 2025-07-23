@@ -24,7 +24,7 @@ from vllm.logger import logger
 class ExpertWeightUpdateState(Enum):
     WAITING = 0  # waiting for updated expert_map by EplbWorker
     READY = 1  # ready for d2d expert weights updating
-    TRANSFERING = 2  # d2d finished and waiting for updating expert_map into model
+    TRANSFERRING = 2  # d2d finished and waiting for updating expert_map into model
 
 
 class D2DExpertWeightLoader:
@@ -95,11 +95,11 @@ class D2DExpertWeightLoader:
             ret_list = dist.batch_isend_irecv(self.comm_op_list)
             reqs.extend(ret_list)
 
-        self.state = ExpertWeightUpdateState.TRANSFERING
+        self.state = ExpertWeightUpdateState.TRANSFERRING
 
     def update_expert_map_and_weight(self, reqs, redundant_enable):
         # Only after send/recv tasks have been luanched, expert_map and weight can be updated
-        if self.state != ExpertWeightUpdateState.TRANSFERING:
+        if self.state != ExpertWeightUpdateState.TRANSFERRING:
             return
 
         # Waiting for send/recv tasks finish
