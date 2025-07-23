@@ -183,7 +183,7 @@ class DynamicEplbV2(EplbPolicy):
                                              expert_from_device,
                                              com_between_devices):
 
-        current_weights = np.zeros((num_experts,), dtype='object')
+        current_weights = np.zeros((num_experts, ), dtype='object')
         for expert_id, workload_weight in enumerate(layer_workloads):
             current_weights[expert_id] = (expert_id, workload_weight)
 
@@ -303,7 +303,7 @@ class DynamicEplbV2(EplbPolicy):
 
         num_devices = len(device_assignments)
         com_between_devices: list[dict[int,
-        int]] = [{} for _ in range(num_devices)]
+                                       int]] = [{} for _ in range(num_devices)]
 
         for expert_id, weight in redundant_expert_list:
             candidate = -1
@@ -313,7 +313,7 @@ class DynamicEplbV2(EplbPolicy):
                 if expert_id in device_assignments[dev_id]:
                     continue
                 if candidate == -1 or device_loads[dev_id] < device_loads[
-                    candidate]:
+                        candidate]:
                     candidate = dev_id
             if candidate != -1:
                 pos = rendun_pos[candidate].pop()
@@ -430,9 +430,9 @@ class DynamicEplbV2(EplbPolicy):
         route_expert_num = layer_workloads.shape[0]
         per_node_device_num = self.safe_exact_divide(device_num, node_num)
         per_node_route_expert_num = per_node_device_num * (
-                per_device_expert_num - 1)
+            per_device_expert_num - 1)
 
-        weights = np.zeros((route_expert_num,), dtype='object')
+        weights = np.zeros((route_expert_num, ), dtype='object')
         for expert_id, workload_weight in enumerate(layer_workloads):
             weights[expert_id] = (expert_id, workload_weight)
 
@@ -553,7 +553,7 @@ class DynamicEplbV2(EplbPolicy):
             for index in range(0, len(devices_total_weight) - 1):
                 min_weight_device_id = devices_total_weight[index][1]
                 if min_weight_device_id not in com_between_devices[
-                    max_weight_device_id]:
+                        max_weight_device_id]:
                     cur_exchanged_expert_id = list(
                         com_between_devices[max_weight_device_id].values())
                     next_exchanged_expert_id = list(

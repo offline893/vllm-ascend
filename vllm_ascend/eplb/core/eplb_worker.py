@@ -25,7 +25,8 @@ import torch.distributed as dist
 from vllm.logger import logger
 
 from vllm_ascend.eplb.core.eplb_utils import generate_log2phy_map
-from vllm_ascend.eplb.core.policy.policy_factory import PolicyFactory, DynamicConfig
+from vllm_ascend.eplb.core.policy.policy_factory import (DynamicConfig,
+                                                         PolicyFactory)
 
 
 class EplbWorker:
@@ -169,7 +170,7 @@ class EplbWorker:
             # loop until all experts are scheduled
             while len(dst_rank_indices) > 0:
                 # construct bipartite graph
-                graph_expert_update = nx.Graph()
+                graph_expert_update: nx.Graph = nx.Graph()
                 for idx in range(len(dst_rank_indices)):
                     dst_rank_id = dst_rank_indices[idx].item()
                     expert_id = experts_to_recv[idx].item()

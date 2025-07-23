@@ -15,7 +15,7 @@
 # This file is a part of the vllm-ascend project.
 #
 
-from multiprocessing import Queue, Manager
+from multiprocessing import Manager, Queue
 
 import numpy
 import torch
@@ -24,7 +24,8 @@ import vllm.envs as envs
 from vllm.logger import logger
 
 from vllm_ascend.ascend_config import get_ascend_config
-from vllm_ascend.eplb.core.eplb_device_transfer_loader import D2DExpertWeightLoader
+from vllm_ascend.eplb.core.eplb_device_transfer_loader import \
+    D2DExpertWeightLoader
 from vllm_ascend.eplb.core.eplb_worker import EplbProcess
 
 
@@ -109,7 +110,7 @@ class EplbUpdator:
 
     def update_expert_weight_flag(self):
         weight_update_counter = self.cur_iterations - (
-                self.num_iterations_eplb_update + self.num_wait_worker_iterations)
+            self.num_iterations_eplb_update + self.num_wait_worker_iterations)
         return (weight_update_counter >= 0
                 and weight_update_counter < self.num_moe_layers)
 
@@ -118,7 +119,7 @@ class EplbUpdator:
             if not self.expert_map_initialized:
                 self.shared_dict[
                     "expert_maps"] = self.adaptor.get_init_expert_map_from_file(
-                    self.num_moe_layers, self.expert_map_path)
+                        self.num_moe_layers, self.expert_map_path)
                 self.expert_map_initialized = True
         except Exception as e:
             logger.warning(f"[ModelRunner] Failed to wake EPLB process: {e}",
@@ -196,7 +197,7 @@ class EplbUpdator:
         self.get_init_expert_map()
         self.compute_and_set_moe_load()
 
-        src_tensor = torch.empty((1,), device=self.device)
+        src_tensor = torch.empty((1, ), device=self.device)
         self_rank = dist.get_rank()
 
         comm_op_list = []

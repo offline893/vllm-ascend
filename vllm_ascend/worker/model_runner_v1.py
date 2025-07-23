@@ -80,14 +80,13 @@ from vllm_ascend.attention.attention import AttentionMaskBuilder
 from vllm_ascend.attention.attention_v1 import AscendAttentionState
 from vllm_ascend.attention.utils import \
     AscendCommonAttentionMetadata as CommonAttentionMetadata
+from vllm_ascend.eplb.adaptor.vllm_adaptor import VllmEplbAdaptor
+from vllm_ascend.eplb.eplb_updator import EplbUpdator
 from vllm_ascend.multistream.ms_split import compute_split_seq_index
 from vllm_ascend.platform import NPUPlatform
 from vllm_ascend.sample.rejection_sampler import AscendRejectionSampler
 from vllm_ascend.utils import ProfileExecuteDuration
 from vllm_ascend.worker.mtp_proposer_v1 import MtpProposer
-
-from vllm_ascend.eplb.eplb_updator import EplbUpdator
-from vllm_ascend.eplb.adaptor.vllm_adaptor import VllmEplbAdaptor
 
 if TYPE_CHECKING:
     import xgrammar as xgr  # type: ignore[import-untyped]
