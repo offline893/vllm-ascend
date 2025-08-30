@@ -565,15 +565,8 @@ class TokenDispatcherWithMC2(MoETokenDispatcher):
         expert_map: torch.Tensor,
         global_redundant_expert_num: int = 0,
     ):
-        if self.with_quant:
-            quant_mode = 2
-            if (expert_map is not None):
-                moe_expert_num = len(expert_map) + global_redundant_expert_num
-            else:
-                moe_expert_num = global_redundant_expert_num
-        else:
-            quant_mode = 0
-            moe_expert_num = len(expert_map)
+        quant_mode = 2 if self.with_quant else 0
+        moe_expert_num = self.num_experts
         kwargs_mc2 = {
             "x": hidden_states,
             "expert_ids": topk_ids,
@@ -624,6 +617,9 @@ class TokenDispatcherWithMC2(MoETokenDispatcher):
         self.topk_weights = topk_weights
         self.shared_experts = shared_experts
         self.mc2_mask = mc2_mask
+
+        if log2phy is not None:
+            topk_ids = log2phy[topk_ids]
 
         kwargs_mc2 = self.get_dispatch_mc2_kwargs(hidden_states, topk_weights,
                                                   topk_ids, expert_map,
@@ -989,9 +985,6 @@ class TokenDispatcherWithAll2AllV(MoETokenDispatcher):
         super().__init__(**kwargs)
         self.with_quant = False
         self.num_local_experts = kwargs.get("num_local_experts", 0)
-        self.num_global_redundant_experts = kwargs.get(
-            "num_global_redundant_experts", 0)
-        self.num_experts = self.num_experts + self.num_global_redundant_experts
 
         self.hidden_shape = None
         self.topk_weights = None
