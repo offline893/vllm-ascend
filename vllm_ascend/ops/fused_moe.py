@@ -674,9 +674,9 @@ class AscendFusedMoE(FusedMoE):
 
         is_deepseek_v3_r1 = self.global_num_experts == 256
         self.rm_router_logits = get_rm_router_logits_state(
-            self.moe_parallel_config.ep_size, self.dp_size, is_deepseek_v3_r1)
+            self.ep_size, self.dp_size, is_deepseek_v3_r1)
         self.all_reduce_merge = get_all_reduce_merge_state(
-            self.moe_parallel_config.ep_size, is_deepseek_v3_r1)
+            self.ep_size, is_deepseek_v3_r1)
 
         ascend_config = get_ascend_config()
         expert_map_path = ascend_config.expert_map_path
@@ -744,6 +744,11 @@ class AscendFusedMoE(FusedMoE):
         self.tp_group = get_tp_group().device_group
         self.quant_method.create_weights(layer=self, **moe_quant_params)
         self.token_dispatcher = None
+
+        if self.log2phy is not None and self.ep_size > 1:
+            self.global_num_experts = self.global_num_experts + self.global_redundant_expert_num
+            self.local_num_experts = self.global_num_experts // self.ep_size
+
         if envs_ascend.VLLM_ASCEND_ENABLE_MOE_ALL2ALL_SEQ and isinstance(
                 self.quant_method, AscendUnquantizedFusedMoEMethod):
             self.reduce_results = False
@@ -763,12 +768,10 @@ class AscendFusedMoE(FusedMoE):
                     self.token_dispatcher, token_dispatcher1
                 ]
 
-        ep_size = (get_ep_group().world_size if
-                   vllm_config.parallel_config.enable_expert_parallel else 1)
         from vllm_ascend.ops.moe_dispatcher.token_dispatcher import \
             setup_token_dispatchers
         setup_token_dispatchers(
-            ep_size,
+            self.ep_size,
             top_k=self.top_k,
             num_experts=self.global_num_experts,
             num_global_redundant_experts=self.global_redundant_expert_num,
