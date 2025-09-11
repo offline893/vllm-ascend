@@ -23,6 +23,7 @@ import math
 import time
 from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass
+from multiprocessing import Manager
 from typing import TYPE_CHECKING, Dict, List, Optional, Union, cast
 
 import numpy as np
@@ -369,10 +370,17 @@ class NPUModelRunner(LoRAModelRunnerMixin):
         self.dynamic_eplb = ascend_config.dynamic_eplb
         if self.dynamic_eplb:
             self.is_eplb_warmuped = False
-            self.eplb_adaptor = VllmEplbAdaptor(model=self.model)
-            self.eplb_loader = D2DExpertWeightLoader(eplb_adaptor=self.eplb_adaptor)
-            self.eplb_process = EplbProcess(policy_type=1, enable_d2d=True)
-            self.eplb_updator = EplbUpdator(ascend_config, self.eplb_adaptor, self.eplb_loader, self.eplb_process)
+            self.eplb_loader = D2DExpertWeightLoader()
+            self.manager = Manager()
+            self.shared_dict = self.manager.dict({
+                "expert_map": None,
+                "moe_load": None,
+                "expert_maps": None
+            })
+            self.eplb_process = EplbProcess(shared_dict=self.shared_dict, policy_type=1, enable_d2d=True)
+            self.process = self.eplb_process._launch_process()
+            ascend_config = get_ascend_config()
+            self.eplb_updator = EplbUpdator(ascend_config, self.eplb_loader, self.process)
 
     def _use_aclgraph(self) -> bool:
         return self.compilation_config.cudagraph_mode != CUDAGraphMode.NONE and self.compilation_config.level == CompilationLevel.PIECEWISE and not self.model_config.enforce_eager
@@ -2190,7 +2198,11 @@ class NPUModelRunner(LoRAModelRunnerMixin):
     def eplb_warmup(self):
         if self.dynamic_eplb and not self.is_eplb_warmuped:
             self.is_eplb_warmuped = True
+            self.eplb_adaptor = VllmEplbAdaptor(model=self.model)
+            self.eplb_loader.set_adator(self.eplb_adaptor)
+            self.eplb_updator.set_adaptor(self.eplb_adaptor)
             self.eplb_updator.warm_up_eplb()
+
 
     def load_model(self) -> None:
         logger.info("Starting to load model %s...", self.model_config.model)
@@ -2199,7 +2211,6 @@ class NPUModelRunner(LoRAModelRunnerMixin):
             self.model = get_model(vllm_config=self.vllm_config)
             if self.dynamic_eplb:
                 model_register(self.model, self.model_config)
-
             if is_310p():
                 from vllm.model_executor.layers.linear import (
                     MergedColumnParallelLinear, QKVParallelLinear,
