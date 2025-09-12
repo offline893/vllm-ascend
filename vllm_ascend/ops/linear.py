@@ -36,10 +36,34 @@ from vllm.model_executor.utils import set_weight_attrs
 
 from vllm_ascend.distributed.parallel_state import (get_mlp_tp_group,
                                                     get_otp_group)
-from vllm_ascend.utils import (dense_optim_enable, matmul_allreduce_enable,
-                               mlp_tp_enable, oproj_tp_enable)
+from vllm_ascend.utils import (ACL_FORMAT_FRACTAL_NZ, dense_optim_enable,
+                               matmul_allreduce_enable, mlp_tp_enable,
+                               oproj_tp_enable)
 
 _HCOMM_INFO = None
+
+
+class AscendUnquantizedLinearMethod(UnquantizedLinearMethod):
+    """Linear method without quantization."""
+
+    def process_weights_after_loading(self, layer: torch.nn.Module) -> None:
+        super().process_weights_after_loading(layer)
+        if torch.version.cann.startswith("8.3"):
+            layer.weight.data = layer.weight.data.transpose(0, 1).contiguous()
+            layer.weight.data = torch_npu.npu_format_cast(
+                layer.weight.data, ACL_FORMAT_FRACTAL_NZ)
+
+    def apply(self,
+              layer: torch.nn.Module,
+              x: torch.Tensor,
+              bias: Optional[torch.Tensor] = None) -> torch.Tensor:
+        if torch.version.cann.startswith("8.3"):
+            if bias is None:
+                return torch.matmul(x, layer.weight)
+            else:
+                return torch.matmul(x, layer.weight) + bias
+        else:
+            return torch.nn.functional.linear(x, layer.weight, bias)
 
 
 class AscendColumnParallelLinear(ColumnParallelLinear):
@@ -62,6 +86,7 @@ class AscendColumnParallelLinear(ColumnParallelLinear):
         prefix: str = "",
         *,
         return_bias: bool = True,
+        disable_tp: bool = False,
     ):
         self.comm_group = None
         if prefix.find("gate_up_proj") != -1 and mlp_tp_enable():
@@ -88,7 +113,8 @@ class AscendColumnParallelLinear(ColumnParallelLinear):
                                   params_dtype,
                                   quant_config,
                                   prefix,
-                                  return_bias=return_bias)
+                                  return_bias=return_bias,
+                                  disable_tp=disable_tp)
 
         self.gather_output = gather_output
 
@@ -137,6 +163,7 @@ class AscendRowParallelLinear(RowParallelLinear):
         prefix: str = "",
         *,
         return_bias: bool = True,
+        disable_tp: bool = False,
     ):
         if prefix.find("down_proj") != -1 and mlp_tp_enable():
             comm_group = get_mlp_tp_group()
@@ -156,6 +183,7 @@ class AscendRowParallelLinear(RowParallelLinear):
             self.forward_type = "normal"
         self.comm_group = comm_group
 
+        # TODO: check for disable_tp
         self.tp_size = self.comm_group.world_size
         self.tp_rank = self.comm_group.rank_in_group
 
@@ -171,7 +199,8 @@ class AscendRowParallelLinear(RowParallelLinear):
                                   params_dtype,
                                   quant_config,
                                   prefix,
-                                  return_bias=return_bias)
+                                  return_bias=return_bias,
+                                  disable_tp=disable_tp)
 
         self.input_is_parallel = input_is_parallel
         self.reduce_results = reduce_results
@@ -361,6 +390,7 @@ class AscendRowParallelLinear(RowParallelLinear):
                                                       input_parallel,
                                                       bias=bias_)
             output = torch.ops.vllm.maybe_pad_and_reduce(output_parallel)
+            torch.ops.vllm.maybe_prefetch_mlp_gate_up_proj(output, self.prefix)
 
         output_bias = self.bias if self.skip_bias_add else None
 
@@ -392,6 +422,7 @@ class AscendMergedColumnParallelLinear(MergedColumnParallelLinear):
         prefix: str = "",
         *,
         return_bias: bool = True,
+        disable_tp: bool = False,
     ):
         if prefix.find("gate_up_proj") != -1 and mlp_tp_enable():
             comm_group = get_mlp_tp_group()
@@ -403,6 +434,7 @@ class AscendMergedColumnParallelLinear(MergedColumnParallelLinear):
             comm_group = get_tp_group()
             self.forward_type = "normal_tp"
         self.comm_group = comm_group
+        # TODO: check for disable_tp
         self.tp_rank = comm_group.rank_in_group
         self.tp_size = comm_group.world_size
 
@@ -418,7 +450,8 @@ class AscendMergedColumnParallelLinear(MergedColumnParallelLinear):
                                             params_dtype=params_dtype,
                                             quant_config=quant_config,
                                             prefix=prefix,
-                                            return_bias=return_bias)
+                                            return_bias=return_bias,
+                                            disable_tp=disable_tp)
 
     def forward(
         self,
@@ -498,6 +531,7 @@ class AscendQKVParallelLinear(QKVParallelLinear):
         prefix: str = "",
         *,
         return_bias: bool = True,
+        disable_tp: bool = False,
     ):
         if dense_optim_enable():
             self.forward_type = "dense_optim"
@@ -511,6 +545,7 @@ class AscendQKVParallelLinear(QKVParallelLinear):
             total_num_kv_heads = total_num_heads
         self.total_num_kv_heads = total_num_kv_heads
         # Divide the weight matrix along the last dimension.
+        # TODO: check for disable_tp
         tp_size = self.comm_group.world_size
         self.num_heads = divide(self.total_num_heads, tp_size)
         if tp_size >= self.total_num_kv_heads:
@@ -537,7 +572,8 @@ class AscendQKVParallelLinear(QKVParallelLinear):
                                             params_dtype=params_dtype,
                                             quant_config=quant_config,
                                             prefix=prefix,
-                                            return_bias=return_bias)
+                                            return_bias=return_bias,
+                                            disable_tp=disable_tp)
 
     def forward(
         self,
@@ -606,7 +642,7 @@ class AscendLinearBase(LinearBase):
         self.prefix = prefix
         if quant_config is None:
             self.quant_method: Optional[
-                QuantizeMethodBase] = UnquantizedLinearMethod()
+                QuantizeMethodBase] = AscendUnquantizedLinearMethod()
         else:
             self.quant_method = quant_config.get_quant_method(self,
                                                               prefix=prefix)
