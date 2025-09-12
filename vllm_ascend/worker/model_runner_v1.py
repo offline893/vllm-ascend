@@ -2029,7 +2029,7 @@ class NPUModelRunner(LoRAModelRunnerMixin):
                                                        num_reqs,
                                                        skip_attn=True)
 
-        if not is_torchair_compile and not self.in_profile_run and self.dynamic_eplb:
+        if not self.in_profile_run and self.dynamic_eplb:
             self.eplb_updator.forward_before()
 
         with self.maybe_dummy_run_with_lora(self.lora_config,
@@ -2116,7 +2116,7 @@ class NPUModelRunner(LoRAModelRunnerMixin):
                     dummy_compute_logits(hidden_states)
             if self.in_profile_run and self.dynamic_eplb:
                 self.model.clear_all_moe_loads()
-            if not is_torchair_compile and not self.in_profile_run and self.dynamic_eplb:
+            if not self.in_profile_run and self.dynamic_eplb:
                 self.eplb_updator.take_update_info_from_eplb_process()
                 self.eplb_updator.forward_end()
             return hidden_states
