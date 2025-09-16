@@ -14,9 +14,7 @@
 # limitations under the License.
 # This file is a part of the vllm-ascend project.
 #
-
-from multiprocessing import Manager, Queue
-
+# Todo: Once https://github.com/vllm-project/vllm/issues/22246 is merged in vllm. Remove this updator.
 import numpy
 import torch
 import torch.distributed as dist
@@ -73,7 +71,6 @@ class EplbUpdator:
 
     def update_iteration(self):
         self.cur_iterations += 1
-        print(self.cur_iterations)
         if self.cur_iterations == (self.num_iterations_eplb_update + \
                                    self.num_wait_worker_iterations + self.num_moe_layers):
             if self.expert_map_record_path is not None:

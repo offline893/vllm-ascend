@@ -14,6 +14,7 @@
 # limitations under the License.
 # This file is a part of the vllm-ascend project.
 #
+# Todo: Once https://github.com/vllm-project/vllm/issues/22246 is merged in vllm. Remove this adaptor.
 import json
 from typing import Any
 
@@ -23,7 +24,6 @@ from vllm.logger import logger
 
 from vllm_ascend.ascend_config import get_ascend_config
 from vllm_ascend.eplb.adaptor.abstract_adaptor import EplbAdaptor
-
 
 class VllmEplbAdaptor(EplbAdaptor):
 
@@ -193,10 +193,7 @@ class VllmEplbAdaptor(EplbAdaptor):
                 json.dump(record, f, indent=4)
 
     def do_update_expert_map(self, layer_id, updated_expert_map):
-        # logger.info("+++++++++++++++++expert_map_per_layer[layer_id].copy_(updated_expert_map)++++++++++++++++++++++")
-        # self.expert_map_per_layer[layer_id].copy_(updated_expert_map)
         self.expert_map_per_layer[layer_id] = updated_expert_map.clone()
-        # self.expert_map_per_layer_cpu[layer_id].copy_(updated_expert_map)
         self.expert_map_per_layer_cpu[layer_id]= updated_expert_map.clone()
 
     def do_update_expert_weight(self, layer_id, local_expert_to_replace,
