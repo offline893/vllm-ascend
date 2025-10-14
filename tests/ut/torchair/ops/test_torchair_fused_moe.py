@@ -28,6 +28,7 @@ from vllm_ascend.torchair.ops.torchair_fused_moe import (
     TorchairAscendFusedMoE, TorchairAscendUnquantizedFusedMoEMethod)
 from vllm_ascend.utils import adapt_patch  # noqa E402
 from vllm_ascend.utils import AscendSocVersion
+from vllm_ascend.ascend_config import get_ascend_config
 
 adapt_patch(True)
 
@@ -355,7 +356,9 @@ class TestTorchairAscendUnquantizedFusedMoEMethod:
         """
         global_num_experts, ep_size = others_param
         is_prefill = False
-        is_deepseek_v3_r1 = global_num_experts == 256
+        global_redundant_expert_num = get_ascend_config(
+        ).init_redundancy_expert
+        is_deepseek_v3_r1 = global_num_experts - global_redundant_expert_num == 256
         forward_context = MagicMock(fused_moe_state=_get_fused_moe_state(
             ep_size, is_prefill, is_deepseek_v3_r1))
         with patch(
