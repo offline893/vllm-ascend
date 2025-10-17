@@ -212,6 +212,7 @@ def torchair_fused_experts_with_mc2(
     log2phy: torch.Tensor = None,
     global_redundant_expert_num: int = 0,
     shared_experts: Optional[Any] = None,
+    token_selector: torch.Tensor = None,
     is_torchair: bool = False,
     quantized_x_for_share: Optional[Any] = None,
     dynamic_scale_for_share: Optional[Any] = None,
@@ -224,7 +225,8 @@ def torchair_fused_experts_with_mc2(
 ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
     assert mc2_mask is not None
     if log2phy is not None:
-        topk_ids = log2phy[topk_ids]
+        log2phy_map, num_experts = log2phy
+        topk_ids = log2phy_map[topk_ids, token_selector[: topk_ids.shape[0]] % num_experts[topk_ids]]
 
     quant_mode = 2
     ep_group = get_mc2_group()
@@ -413,11 +415,13 @@ def torchair_fused_experts_with_all2all(
     ep_group: GroupCoordinator = None,
     log2phy: torch.Tensor = None,
     global_redundant_expert_num: int = 0,
+    token_selector: torch.Tensor = None,
     w1_scale_bias: torch.Tensor = None,
     w2_scale_bias: torch.Tensor = None,
 ):
     if log2phy is not None:
-        topk_ids = log2phy[topk_ids]
+        log2phy_map, num_experts = log2phy
+        topk_ids = log2phy_map[topk_ids, token_selector[: topk_ids.shape[0]] % num_experts[topk_ids]]
     original_shape = hidden_states.shape
     if len(original_shape) == 3:
         hidden_states = hidden_states.view(-1, hidden_states.shape[-1])
@@ -846,6 +850,11 @@ class TorchairAscendW8A8DynamicFusedMoEMethod:
         self.torchair_graph_enabled = ascend_config.torchair_graph_config.enabled
         self.enable_shared_expert_dp = ascend_config.enable_shared_expert_dp
 
+        from vllm.config import get_current_vllm_config
+        vllm_config = get_current_vllm_config()
+        self.max_token_nums = vllm_config.scheduler_config.max_num_batched_tokens
+        self.token_selector = torch.arange(0, self.max_token_nums, dtype=torch.int32).view(-1, 1)
+
         try:
             device_group = get_mc2_group().device_group
             # TODO: Try local_rank = ep_group.rank_in_group
@@ -1003,6 +1012,7 @@ class TorchairAscendW8A8DynamicFusedMoEMethod:
                 log2phy=log2phy,
                 global_redundant_expert_num=global_redundant_expert_num,
                 shared_experts=shared_experts,
+                token_selector=self.token_selector,
                 is_torchair=self.torchair_graph_enabled,
                 mc2_mask=kwargs.get("mc2_mask", None),
                 shared_gate_up=shared_gate_up,
@@ -1038,6 +1048,7 @@ class TorchairAscendW8A8DynamicFusedMoEMethod:
                 ep_group=self.ep_group,
                 log2phy=log2phy,
                 global_redundant_expert_num=global_redundant_expert_num,
+                token_selector=self.token_selector,
             )
 
     def process_weights_after_loading(self, layer):
