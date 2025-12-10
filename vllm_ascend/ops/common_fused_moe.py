@@ -304,8 +304,6 @@ class AscendFusedMoE(FusedMoE):
         return torch.ops.vllm.maybe_all_reduce_tensor_model_parallel(
             final_hidden_states)
 
-    from vllm.utils.profiling import cprofile
-    @cprofile("forward_impl.prof")
     def forward_impl(self, hidden_states: torch.Tensor,
                      router_logits: torch.Tensor):
         assert self.quant_method is not None

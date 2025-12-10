@@ -113,6 +113,8 @@ class EplbUpdator:
     def wakeup_eplb_worker(self):
         self.eplb_process.planner_q.put(1)
 
+    # from vllm.utils.profiling import cprofile
+    # @cprofile("forward_before.prof")
     def forward_before(self):
         if self.update_expert_weight_flag():
             (expert_send_info, expert_recv_info, updated_expert_map,
@@ -135,6 +137,8 @@ class EplbUpdator:
         if self.get_update_info_flag():
             self.update_info_all = self.eplb_process.block_update_q.get()
 
+    # from vllm.utils.profiling import cprofile
+    # @cprofile("forward_end.prof")
     def forward_end(self):
         if self.wakeup_eplb_worker_flag():
             self.compute_and_set_moe_load(is_clear=True)

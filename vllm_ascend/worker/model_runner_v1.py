@@ -1883,6 +1883,8 @@ class NPUModelRunner(LoRAModelRunnerMixin):
                          f"moe_comm_type: {moe_comm_type}")
         return moe_comm_type
 
+    from vllm.utils.profiling import cprofile
+    @cprofile("execute_model.prof")
     @torch.inference_mode()
     def execute_model(
         self,

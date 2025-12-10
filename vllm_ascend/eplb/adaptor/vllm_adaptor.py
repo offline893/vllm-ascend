@@ -202,24 +202,24 @@ class VllmEplbAdaptor(EplbAdaptor):
 
     # from vllm.utils.profiling import cprofile
     # @cprofile("copy.prof")
-    # def do_update_expert_weight(self, layer_id, local_expert_to_replace,
-    #                             buffer_tensor_id):
-    #     for expert_tensor, buffer_tensor in zip(
-    #             self.expert_param_per_layer[layer_id][local_expert_to_replace],
-    #             self.buffer_tensor_list[buffer_tensor_id]):
-    #         # expert_tensor = buffer_tensor.clone()
-    #         expert_tensor.copy_(buffer_tensor)
-    #
-    #         logger.debug(f"Expert tensor shape is :{expert_tensor.shape}")
-
-    from vllm.utils.profiling import cprofile
-    @cprofile("copy.prof")
     def do_update_expert_weight(self, layer_id, local_expert_to_replace,
                                 buffer_tensor_id):
-        for i,_ in enumerate(self.expert_param_per_layer[layer_id][local_expert_to_replace]):
+        for expert_tensor, buffer_tensor in zip(
+                self.expert_param_per_layer[layer_id][local_expert_to_replace],
+                self.buffer_tensor_list[buffer_tensor_id]):
             # expert_tensor = buffer_tensor.clone()
-            # expert_tensor.copy_(buffer_tensor)
-            self.expert_param_per_layer[layer_id][local_expert_to_replace][i].data = self.buffer_tensor_list[buffer_tensor_id][i].data
+            expert_tensor.copy_(buffer_tensor)
+
+            logger.debug(f"Expert tensor shape is :{expert_tensor.shape}")
+
+    # from vllm.utils.profiling import cprofile
+    # @cprofile("copy.prof")
+    # def do_update_expert_weight(self, layer_id, local_expert_to_replace,
+    #                             buffer_tensor_id):
+    #     for i,_ in enumerate(self.expert_param_per_layer[layer_id][local_expert_to_replace]):
+    #         # expert_tensor = buffer_tensor.clone()
+    #         # expert_tensor.copy_(buffer_tensor)
+    #         self.expert_param_per_layer[layer_id][local_expert_to_replace][i].data = self.buffer_tensor_list[buffer_tensor_id][i].data
 
 
     def do_update_log2phy_map(self, layer_id, updated_log2phy_map):
